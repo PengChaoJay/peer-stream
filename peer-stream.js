@@ -752,19 +752,20 @@ class PeerStream extends HTMLVideoElement {
 
 		this.onmousedown = (e) => {
 			this.emitMouseDown(e.button, e.offsetX, e.offsetY);
-			// e.preventDefault();
+			e.preventDefault();
 		};
 
 		this.onmouseup = (e) => {
 			this.emitMouseUp(e.button, e.offsetX, e.offsetY);
-			// e.preventDefault();
+			e.preventDefault();
 		};
 
 		// When the context menu is shown then it is safest to release the button which was pressed when the event happened. This will guarantee we will get at least one mouse up corresponding to a mouse down event. Otherwise the mouse can get stuck.
 		// https://github.com/facebook/react/issues/5531
 		this.oncontextmenu = (e) => {
-			this.emitMouseUp(e.button, e.offsetX, e.offsetY);
+			//this.emitMouseUp(e.button, e.offsetX, e.offsetY);
 			e.preventDefault();
+			return false;
 		};
 
 		this.onwheel = (e) => {
