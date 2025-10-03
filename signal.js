@@ -176,6 +176,13 @@ ENGINE.on("connection", (ue, req) => {
 	ue.on("pong", heartbeat);
 
 	ue.fe = new Set();
+	//兼容像素流2
+	ue.send(
+		JSON.stringify({
+			type: "identify",
+		})
+	);
+
 	// sent to UE5 as initial signal
 	ue.send(
 		JSON.stringify({
@@ -183,20 +190,22 @@ ENGINE.on("connection", (ue, req) => {
 			peerConnectionOptions: {
 				iceServers: global.iceServers,
 			},
+			protocolVersion:"1.1.0"
 		})
 	);
-
 	// 认领空闲的前端们
-	for (const fe of PLAYER.clients) {
-		if (fe.killPlayer) {
-			continue
+	if(global.UEVersion && global.UEVersion != 5.52 ){
+		for (const fe of PLAYER.clients) {
+			if (fe.killPlayer) {
+				continue
+			}
+			if (!fe.ue) {
+				PLAYER.emit("connection", fe, fe.req);
+			}
 		}
-		if (!fe.ue) {
-			PLAYER.emit("connection", fe, fe.req);
-		}
+		print();
 	}
-	print();
-
+	
 	ue.onmessage = (msg) => {
 		msg = JSON.parse(msg.data);
 
@@ -204,6 +213,25 @@ ENGINE.on("connection", (ue, req) => {
 
 		if (msg.type === "ping") {
 			ue.send(JSON.stringify({ type: "pong", time: msg.time }));
+			return;
+		}
+
+		if(msg.type === "endpointId"){
+			ue.send(
+				JSON.stringify({ type: "endpointIdConfirm", committedId: msg.id })
+				);
+
+			// 认领空闲的前端们
+			for (const fe of PLAYER.clients) {
+				if (fe.killPlayer) {
+					continue
+				}
+				if (!fe.ue) {
+					PLAYER.emit("connection", fe, fe.req);
+				}
+			}
+			print();
+
 			return;
 		}
 
@@ -234,6 +262,7 @@ ENGINE.on("connection", (ue, req) => {
 });
 
 const path = require("path");
+const { json } = require("node:stream/consumers");
 
 
 
@@ -471,7 +500,7 @@ PLAYER.on("connection", (fe, req) => {
 			fe.send(
 				JSON.stringify({
 					type: "playerConnected",
-					playerId: req.socket.remotePort,
+					playerId: req.socket.remotePort.toString(),
 					dataChannel: true,
 					sfu: false,
 				})
@@ -480,7 +509,7 @@ PLAYER.on("connection", (fe, req) => {
 			fe.ue.send(
 				JSON.stringify({
 					type: "playerConnected",
-					playerId: req.socket.remotePort,
+					playerId: req.socket.remotePort.toString(),
 					dataChannel: true,
 					sfu: false,
 				})
@@ -505,7 +534,7 @@ PLAYER.on("connection", (fe, req) => {
 			return;
 		}
 
-		msg.playerId = req.socket.remotePort;
+		msg.playerId = req.socket.remotePort.toString();
 		if (["offer", "answer", "iceCandidate"].includes(msg.type)) {
 			fe.ue.send(JSON.stringify(msg));
 		} else {
@@ -518,7 +547,7 @@ PLAYER.on("connection", (fe, req) => {
 			fe.ue.send(
 				JSON.stringify({
 					type: "playerDisconnected",
-					playerId: req.socket.remotePort,
+					playerId: req.socket.remotePort.toString(),
 				})
 			);
 			fe.ue.fe.delete(fe);
